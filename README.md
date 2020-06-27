@@ -1,4 +1,7 @@
 # f77tof90
+
+From mattdturner:
+
 A python script that reads in a fortran 77 (.f or .F) fixed form file and converts it to a free form Fortran 90 file (.f90 or .F90).
 
 This script was successfully used to convert our entire legacy codebase (over 400 .f/.F files and millions of lines of code) from Fortran 77 to Fortran 90.  
