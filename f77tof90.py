@@ -205,8 +205,8 @@ class FortranLine:
         # Check for 'const.h'
         if 'const.h' in self.line:
             global outfilen
-            print "                   *** File: " + outfilen + " *** "
-            print "Warning :: \"include \'const.h\'\" needs to be replaced with \"use const\""
+            print ("                   *** File: " + outfilen + " *** ")
+            print ("Warning :: \"include \'const.h\'\" needs to be replaced with \"use const\"")
 
         # Return the truncated line (if truncation occured)
         self.line = line
@@ -247,21 +247,21 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 if len(args.files) > 0:
-    print ""
-    print "*** f77tof90.py converts a fixed-form .f file to a free-form .f90 file"
-    print "*** and converts much of the f77 specific code to f90 code (e.g., "
-    print "*** removes numerical 'do' labels and replaces 'continue' statements"
-    print "*** with 'end do'."
-    print "*** "
-    print bcolors.WARNING + "*** NOTE:  This script is not perfect.  It WILL NOT produce a compile-ready"
-    print bcolors.WARNING + "*** .f90 file.  However, it will perform much of the conversion.  The user"
-    print bcolors.WARNING + "*** MUST perform a final analysis / conversion of the code" + bcolors.ENDC
-    print "*** "
-    print bcolors.FAIL + "*** NOTE2: This script has problems with goto statements, and the "
-    print bcolors.FAIL + "*** corresponding continue statements.  The continue statements"
-    print bcolors.FAIL + "*** will likely be replaced with an End Do statement, and the label removed" + bcolors.ENDC
-    print ""
-    print "-------------------"
+    print ("")
+    print ("*** f77tof90.py converts a fixed-form .f file to a free-form .f90 file")
+    print ("*** and converts much of the f77 specific code to f90 code (e.g., ")
+    print ("*** removes numerical 'do' labels and replaces 'continue' statements")
+    print ("*** with 'end do'.")
+    print ("*** ")
+    print (bcolors.WARNING + "*** NOTE:  This script is not perfect.  It WILL NOT produce a compile-ready")
+    print (bcolors.WARNING + "*** .f90 file.  However, it will perform much of the conversion.  The user")
+    print (bcolors.WARNING + "*** MUST perform a final analysis / conversion of the code" + bcolors.ENDC)
+    print ("*** ")
+    print (bcolors.FAIL + "*** NOTE2: This script has problems with goto statements, and the ")
+    print (bcolors.FAIL + "*** corresponding continue statements.  The continue statements")
+    print (bcolors.FAIL + "*** will likely be replaced with an End Do statement, and the label removed" + bcolors.ENDC)
+    print ("")
+    print ("-------------------")
     baseIndent = args.base
     incrementalIndent = args.incr
     continuationIndent = args.cont
@@ -269,8 +269,8 @@ if len(args.files) > 0:
 #    for numArg in range(1,len(sys.argv)):
 #        infilen = sys.argv[numArg]
     for infilen in args.files:
-        print ""
-        print "Converting file: " + infilen
+        print ("")
+        print ("Converting file: " + infilen)
         prevIndent = 0
         filetype = []
         filename = []
@@ -301,4 +301,4 @@ if len(args.files) > 0:
 
         infile.close()
 else:
-    print "Usage:  python f77tof90.py <list of .f files>"
+    print ("Usage:  python f77tof90.py <list of .f files>")
