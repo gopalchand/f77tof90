@@ -9,7 +9,7 @@ This script was successfully used to convert our entire legacy codebase (over 40
 This script was developed specifically for a project that I was working on at the time.  As such, it might not work as you desire for your code.  However, it can be easily adapted to specifics of your legacy code, assuming you know some basic python coding.
 
 A few notes:  
-  - this does not handle 'goto' statements well.  It will replace the "continue" statement with an "end do"  (first attempt to resovle forward referenced labels by gopalchand)
+  - this does not handle 'goto' statements well.  It will replace the "continue" statement with an "end do"  (first attempt to resolve forward referenced labels by gopalchand)
   - this script will auto-indent based on the optional arguments that you pass it.
 
 I would be happy to provide any support. (as would gopalchand)
