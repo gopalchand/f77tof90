@@ -21,11 +21,23 @@ class FortranLine:
         # Remove trailing whitespace, but keep the \n
         self.code = self.code.rstrip() + '\n'
 
+        ###############################################
+        # Deal with GO TO (no stripping of whitepaces)
+        if (not (self.isComment) and (self.code.lower().find('go to'))>0):
+            #print("DEBUG: Found a GO TO: ", self.code.lower());
+            m = re.match('(.*go to)(\s+)(\d+)',self.code.lower())
+            if m:
+                #print("DEBUG: Saving GO TO label: '", m.group(3),"'")
+                GoToList.append(m.group(3))
+        ############################################### 
+
+        ###############################################        
         # Check for and remove do loop labels
         if (not self.isComment) and self.code.lstrip(' ').lower().startswith('do'):
             m = re.match('(.*do)\s(\d+)\s(.+)',self.code.lower())
             if m:
                 self.code = m.group(1) + " " + m.group(3) + "\n"
+                DoLoopList.append(m.group(2))
 
         if ' , ' in self.code:
             self.code = self.code.replace(' , ',', ')
@@ -36,6 +48,7 @@ class FortranLine:
                 m = re.match('(.*\S)=(\S.*)',self.code)
                 if m:
                     self.code = m.group(1) + " = " + m.group(2) + "\n"
+        ############################################### 
 
         # replace all real*8 with real(8)
         if 'real*8' in self.code:
@@ -79,10 +92,83 @@ class FortranLine:
         if 'enddo' in self.code.lower():
             self.code = self.code.lower().replace('enddo','end do')
 
-        # replace all continue lines with End Do
-        if 'continue' in self.code.lower():
-            self.code = self.code.lower().replace("continue","end do")
-            self.label = ''
+        ###############################################
+        # replace all continue lines with End Do (no stripping of whitepaces)
+        # only if expected      
+        if not((self.isComment) or (self.isNewComment)):
+            if 'continue' in self.code.lower():
+                #print("DEBUG: Continue found with label ",self.label)
+                if (len(DoLoopList) > 0):                                  
+                    if(DoLoopList[-1]==(self.label.strip())):
+                        #print("DEBUG: Matched '", DoLoopList[-1],"' with '",self.label,"'")                        
+                        GoToSet = set(GoToList)
+                        if (self.label.strip() in GoToSet):         
+                            # Save the label because it is used by GO TO
+                            #print("DEBUG: This is also used by GO TO '", self.label.strip(),"'")
+                            gotoindex = GoToList.index(self.label.strip())
+                            del GoToList[gotoindex]
+                            # Save the label and CONTINUE statement in the CONTINUE stack
+                            ContinueStack.append(self.label + " " + self.code)
+                            # Drop the label as it is linked to a DO
+                            self.code = self.code.lower().replace("continue","end do")
+                            self.label = ''
+                        else:                                                
+                            # Drop the label as it is linked to a DO
+                            self.code = self.code.lower().replace("continue","end do")
+                            self.label = ''
+                        del DoLoopList[-1]
+                    else:
+                        # Preserve CONTINUE without a label or not a CONTINUE for a GO TO
+                        print("WARNING: Unexpected label for CONTINUE: '", self.label.strip(), "' expected '",DoLoopList[-1],"'")
+                        GoToSet = set(GoToList)
+                        if (self.label.strip() in GoToSet):
+                            # Matched to GO TO Label
+                            #print("DEBUG: This is actually used by GO TO '", self.label.strip(),"'")
+                            gotoindex = GoToList.index(self.label.strip())
+                            del GoToList[gotoindex]
+                            self.label = self.label + " "
+                        else:
+                            # Not a Label for a GO TO
+                            if(len(self.label.strip())>0):
+                                MismatchedLabelList.append(self.label.strip())
+                                self.label = self.label + " "
+                else:                    
+                    # Label without a prior DO
+                    #print("DEBUG: Label without prior DO '", self.label.strip(),"'")
+                    if (len(GoToList) > 0):                        
+                        GoToSet = set(GoToList)
+                        if (self.label.strip() in GoToSet):                        
+                            # Matched to GO TO Label
+                            #print("DEBUG: Preserving GO TO label '", self.label.strip(),"'")
+                            gotoindex = GoToList.index(self.label.strip())
+                            del GoToList[gotoindex]                            
+                            self.label = self.label + " "
+                        else:
+                            # Standalone Label or future GO TO label
+                            print ("WARNING: Preserving label not linked to DO or previous GO TO: '", self.label.strip(),"'")
+                            if(len(self.label.strip())>0):
+                                MismatchedLabelList.append(self.label.strip())
+                            self.label = self.label + " "
+                    else:
+                        print ("WARNING: Preserving label not linked to DO or previous GO TO: '", self.label.strip(),"'")
+                        self.label = self.label + " "
+        else:
+            if 'continue' in self.code.lower():            
+                #print("DEBUG: Comment based Continue found with label ",self.label)
+                pass
+        ###############################################
+        
+        ###############################################
+        # handle format statement with label
+        if 'format' in self.code.lower():
+            self.label = self.label + " "             
+        ################################################
+
+        ###############################################
+        # handle return statement with label
+        if 'return' in self.code.lower():
+            self.label = self.label + " "             
+        ################################################
 
         # replace all .gt., .lt., etc with >, <, etc
         if ".gt." in self.code.lower():
@@ -113,20 +199,38 @@ class FortranLine:
 
         # Pull the filetype
         global filetype
-        if ( self.code.lower().lstrip(' ').startswith(('subroutine','module','program','function')) ):
-            m = re.match('(subroutine|module|program|function)\s(\D+)\(.*',self.code.lower().strip(' '))
-            if m:
-                filetype.append(m.group(1))
-                filename.append(m.group(2))
-            m = re.match('(program)\s(\D+)',self.code.lower().strip(' '))
-            if m:
-                filetype.append(m.group(1))
-                filename.append(m.group(2))
 
+        ###############################################
+        # Ignore Module|Subroutine|Program|Function if it is a comment
+        # Names must start with a non-digit but can contain non-digits
+        if not((self.isComment) or (self.isNewComment)):
+            if ( self.code.lower().lstrip(' ').startswith('module')):
+                #print("DEBUG: Match 1:", self.code.lower())
+                # Modules do not have "("
+                m = re.match('(module)\s(\D\w+)',self.code.lower().strip(' '))
+                if m:
+                    filetype.append(m.group(1))
+                    filename.append(m.group(2))
+                    #print("DEBUG: MODULE used", self.code.lower(), filetype, filename)
+            elif ( self.code.lower().lstrip(' ').startswith(('subroutine','program','function'))):
+                #print("DEBUG: Match 2:", self.code.lower())
+                m = re.match('(subroutine|program|function)\s(\D\w+)\(.*',self.code.lower().strip(' '))
+                if m:
+                    filetype.append(m.group(1))
+                    filename.append(m.group(2))
+                    #print("DEBUG SUBROUTINE used", self.code.lower(), filetype, filename)
+                m = re.match('(program)\s(\D\w+)',self.code.lower().strip(' '))
+                if m:
+                    filetype.append(m.group(1))
+                    filename.append(m.group(2))
+                    #print("DEBUG: PROGRAM used", self.code.lower(), filetype, filename)   
+        ###############################################
+                
         # Check if the current line is indented more (less) than the current line.
         global baseIndent
         global incrementalIndent
         global continuationIndent
+        
         if ('subroutine' in self.code.lower()) or self.isComment or self.isCpp:
             self.Indent = 0
             self.prevIndent = max(baseIndent,self.prevIndent)
@@ -274,6 +378,11 @@ if len(args.files) > 0:
         prevIndent = 0
         filetype = []
         filename = []
+        
+        DoLoopList = []
+        GoToList = []
+        MismatchedLabelList = []
+        ContinueStack = []
 
         # Grab the file name, excluding the '.f'
         name_len = len(infilen.rsplit('.',1)[0])
@@ -295,10 +404,27 @@ if len(args.files) > 0:
                 linestack = []
 
             linestack.append(newline)
+            
+            ###############################################
+            # CONTINUE for a GO TO label
+            if(len(ContinueStack)>0):
+                #print("DEBUG: printing continue statement ",ContinueStack[-1])
+                linestack.append(ContinueStack[-1])
+                del ContinueStack[-1]                            
+            ###############################################
 
         for l in linestack:
             sys.file.write(str(l))
 
         infile.close()
+        
+        if((len(DoLoopList)>0)):
+            print("WARNING: DO(s) not matched with END DO: ",DoLoopList)
+            
+        if((len(GoToList)>0)):
+            print("WARNING: GO TO label(s) not found ",GoToList)
+            
+        if((len(MismatchedLabelList)>0)):
+            print("WARNING: Unexpected label(s) found ",MismatchedLabelList)
 else:
     print ("Usage:  python f77tof90.py <list of .f files>")
